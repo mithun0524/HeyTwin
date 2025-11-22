@@ -18,12 +18,26 @@ Key reference docs:
 - `docs/api-contracts.md`
 - `docs/digital-twin-formulas.md`
 
-## Prerequisites
+## Requirements
+- **Git** 2.40+ (used for cloning and keeping the repo up to date)
 - **Java 17**
 - **Maven 3.9+** (install locally; wrapper not yet checked in)
 - **Node.js 18+** and npm
 - **Python 3.10+**
 - **PostgreSQL 15+** (or a compatible managed instance)
+- **PowerShell 5.1+** or any Unix-like shell for running the listed commands
+
+> Tip: if you prefer containers, you can satisfy these requirements by running each service inside Docker once images are added to the repo roadmap.
+
+## Getting started
+1. Clone the repository and move into it:
+   ```powershell
+   git clone https://github.com/mithun0524/HeyTwin.git
+   cd HeyTwin
+   ```
+2. Create `backend/.env` and add your database connection string (`DB_URL`), username, password, and any JWT/AI secrets. The file is ignored by git, so keep a local backup if needed.
+3. Verify each requirement is installed (`java -version`, `mvn -v`, `node -v`, `python --version`, `psql --version`).
+4. Follow the service-specific instructions below to start the database, backend, AI service, and frontend.
 
 ## 1. Database bootstrap
 1. Create a database (default name `heytwin`).
