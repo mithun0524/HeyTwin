@@ -1,0 +1,40 @@
+# System files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Node / frontend builds
+node_modules/
+dist/
+.next/
+out/
+coverage/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env.local
+.venv/
+venv/
+
+# Java / Maven
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+
+# Environment files
+*.env
+*/.env
+
+# Azure / tooling
+.azure/
