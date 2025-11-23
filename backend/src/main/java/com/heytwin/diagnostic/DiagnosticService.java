@@ -71,8 +71,7 @@ public class DiagnosticService {
 
         Map<UUID, Question> questionLookup = extractQuestionIds(session).stream()
                 .map(questionRepository::findById)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .flatMap(Optional::stream)
                 .collect(Collectors.toMap(Question::getId, q -> q));
 
         List<Response> responses = request.getResponses().stream()
