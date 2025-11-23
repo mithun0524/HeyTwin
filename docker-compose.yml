@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: heytwin-db
+    environment:
+      POSTGRES_DB: heytwin
+      POSTGRES_USER: heytwin
+      POSTGRES_PASSWORD: heytwin
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U heytwin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: heytwin-ai-service
+    environment:
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: heytwin-backend
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/heytwin
+      DB_USERNAME: heytwin
+      DB_PASSWORD: heytwin
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/heytwin
+      SPRING_DATASOURCE_USERNAME: heytwin
+      SPRING_DATASOURCE_PASSWORD: heytwin
+      JWT_SECRET: dev-secret-change-me
+      JWT_EXPIRATION: "3600000"
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_KEY: dev-api-key
+      SERVER_PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: heytwin-frontend
+    environment:
+      VITE_API_URL: http://backend:8080/api
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  pgdata:

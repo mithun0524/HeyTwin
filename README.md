@@ -18,6 +18,7 @@ Key reference docs:
 - `docs/architecture.md`
 - `docs/api-contracts.md`
 - `docs/digital-twin-formulas.md`
+- `docs/containerization.md`
 
 ## Requirements
 
@@ -53,6 +54,27 @@ Key reference docs:
 5. **Smoke test the stack** – Visit `http://localhost:5173`, verify the dashboard loads data from `/api`, and watch the backend logs for AI-service calls.
 
 Once these services are healthy, you can iterate on adaptive logic, the analytics UI, or the ML models with live feedback.
+
+### Run everything with Docker
+
+If you prefer containers, build the entire stack with a single command (Docker Desktop or Docker Engine 24+ required):
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+- PostgreSQL 15 runs inside the `db` service and auto-applies `db/schema.sql` on first launch.
+- The backend is reachable at http://localhost:8080/api and proxies to the AI service at http://ai-service:8000.
+- The frontend static bundle is served by NGINX at http://localhost:5173 (mapped from port 80 inside the container).
+
+To stop and clean up:
+
+```bash
+docker compose down -v
+```
+
+See `docs/containerization.md` for image details, environment variables, and future enhancements.
 
 ## 1. Database bootstrap
 
