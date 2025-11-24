@@ -4,12 +4,10 @@ import com.heytwin.domain.entity.User;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
-import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-@Getter
 public class UserPrincipal implements UserDetails {
     private final UUID id;
     private final String email;
@@ -26,13 +24,7 @@ public class UserPrincipal implements UserDetails {
     }
 
     public static UserPrincipal of(User user) {
-        return new UserPrincipal(
-                user.getId(),
-                user.getEmail(),
-                user.getPasswordHash(),
-                user.getFullName(),
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
-        );
+        return new UserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), user.getFullName(), List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
     }
 
     @Override
@@ -68,5 +60,23 @@ public class UserPrincipal implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    @java.lang.SuppressWarnings("all")
+    
+    public UUID getId() {
+        return this.id;
+    }
+
+    @java.lang.SuppressWarnings("all")
+    
+    public String getEmail() {
+        return this.email;
+    }
+
+    @java.lang.SuppressWarnings("all")
+    
+    public String getFullName() {
+        return this.fullName;
     }
 }

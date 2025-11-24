@@ -1,17 +1,22 @@
 # API Contracts
 
 ## Base URLs
+
 - Backend (Spring Boot): `https://api.heytwin.local/v1`
 - AI Service (FastAPI): `https://ai.heytwin.local`
 - All backend responses wrap payloads using:
+
 ```json
 {
   "timestamp": "2025-11-22T10:32:05Z",
   "status": 200,
   "path": "/api/practice/session/start",
-  "data": { /* endpoint-specific payload */ }
+  "data": {
+    /* endpoint-specific payload */
+  }
 }
 ```
+
 - Errors utilize RFC 7807 Problem Details structure.
 
 ---
@@ -19,7 +24,9 @@
 ## Authentication & User Management
 
 ### POST `/api/auth/register`
+
 Registers a student account.
+
 ```json
 // request
 {
@@ -39,6 +46,7 @@ Registers a student account.
 ```
 
 ### POST `/api/auth/login`
+
 ```json
 // request
 {
@@ -60,6 +68,7 @@ Registers a student account.
 ```
 
 ### POST `/api/auth/refresh`
+
 ```json
 // request
 {
@@ -78,7 +87,9 @@ Registers a student account.
 ## Dashboard & Digital Twin Summary
 
 ### GET `/api/dashboard/overview`
+
 Returns snapshot metrics rendered on the dashboard.
+
 ```json
 {
   "diagnosticCompleted": true,
@@ -93,13 +104,12 @@ Returns snapshot metrics rendered on the dashboard.
     "weakTopics": ["Trigonometry"],
     "estimatedExamScore": 82
   },
-  "reminders": [
-    { "topic": "Trigonometry", "due": "2025-11-23" }
-  ]
+  "reminders": [{ "topic": "Trigonometry", "due": "2025-11-23" }]
 }
 ```
 
 ### GET `/api/digital-twin/summary`
+
 ```json
 {
   "studentId": "uuid",
@@ -126,10 +136,13 @@ Returns snapshot metrics rendered on the dashboard.
 ```
 
 ### GET `/api/digital-twin/topics/{topicId}`
+
 Detail view for a single topic.
 
 ### POST `/api/digital-twin/recalculate`
+
 (Admin) Forces recalculation for given student(s).
+
 ```json
 {
   "studentIds": ["uuid", "uuid"],
@@ -139,10 +152,35 @@ Detail view for a single topic.
 
 ---
 
+## Question Bank Ingestion
+
+### POST `/api/admin/questions/sync`
+
+- Requires `ROLE_ADMIN` JWT.
+- Optional query parameter `amount` (default `ingestion.opentdb.default-amount`, max 100).
+- Triggers an on-demand import from OpenTDB and returns the batch summary.
+
+```json
+// response 200
+{
+  "requested": 75,
+  "fetched": 50,
+  "inserted": 45,
+  "skipped": 5
+}
+```
+
+Scheduled imports run via `ingestion.opentdb.cron` (defaults to nightly at 02:00) and can be disabled by setting
+`ingestion.opentdb.enabled=false`.
+
+---
+
 ## Diagnostic Engine
 
 ### GET `/api/diagnostic/questions`
+
 Returns 15 curated questions (mixed topics/difficulties).
+
 ```json
 {
   "sessionId": "diag-2025-11-22-001",
@@ -161,7 +199,9 @@ Returns 15 curated questions (mixed topics/difficulties).
 ```
 
 ### POST `/api/diagnostic/responses`
+
 Persists answers and triggers initial twin creation.
+
 ```json
 {
   "sessionId": "diag-2025-11-22-001",
@@ -174,6 +214,7 @@ Persists answers and triggers initial twin creation.
   ]
 }
 ```
+
 Response returns summary + baseline twin metrics.
 
 ---
@@ -181,7 +222,9 @@ Response returns summary + baseline twin metrics.
 ## Practice & Adaptive Engine
 
 ### POST `/api/practice/session/start`
+
 Starts adaptively curated session.
+
 ```json
 {
   "mode": "BALANCED", // BALANCED | WEAK_AREAS | EXAM_SIM
@@ -190,6 +233,7 @@ Starts adaptively curated session.
   "count": 10
 }
 ```
+
 ```json
 // response
 {
@@ -204,7 +248,9 @@ Starts adaptively curated session.
 ```
 
 ### POST `/api/practice/session/{sessionId}/response`
+
 Stream responses during session.
+
 ```json
 {
   "questionId": "uuid",
@@ -213,9 +259,11 @@ Stream responses during session.
   "timeTakenSec": 42
 }
 ```
+
 Returns updated progress + current mastery deltas.
 
 ### POST `/api/practice/session/{sessionId}/complete`
+
 Marks session finished, recalculates twin.
 
 ---
@@ -223,7 +271,9 @@ Marks session finished, recalculates twin.
 ## Analytics & Visualization
 
 ### GET `/api/analytics/mastery`
+
 Returns data for mastery prediction graph.
+
 ```json
 {
   "points": [
@@ -234,6 +284,7 @@ Returns data for mastery prediction graph.
 ```
 
 ### GET `/api/analytics/learning-curve`
+
 ```json
 {
   "sessions": [
@@ -244,6 +295,7 @@ Returns data for mastery prediction graph.
 ```
 
 ### GET `/api/analytics/topic-pie`
+
 ```json
 {
   "topics": [
@@ -254,17 +306,20 @@ Returns data for mastery prediction graph.
 ```
 
 ### GET `/api/analytics/spaced-repetition`
+
 Returns reminders list.
 
 ### GET `/api/analytics/achievements`
+
 ```json
 {
-  "earned": [ { "code": "STREAK_5", "awardedAt": "2025-11-19" } ],
-  "available": [ { "code": "FOCUS_MASTER", "progress": 0.6 } ]
+  "earned": [{ "code": "STREAK_5", "awardedAt": "2025-11-19" }],
+  "available": [{ "code": "FOCUS_MASTER", "progress": 0.6 }]
 }
 ```
 
 ### GET `/api/analytics/estimated-score`
+
 ```json
 {
   "estimatedScore": 83,
@@ -280,10 +335,13 @@ Returns reminders list.
 ---
 
 ## AI Service (FastAPI)
+
 Base URL `https://ai.heytwin.local`.
 
 ### POST `/train`
+
 Triggers training on synthetic or latest DB snapshot.
+
 ```json
 {
   "modelType": "RandomForest",
@@ -300,6 +358,7 @@ Triggers training on synthetic or latest DB snapshot.
   ]
 }
 ```
+
 ```json
 {
   "modelId": "rf-20251122-01",
@@ -312,7 +371,9 @@ Triggers training on synthetic or latest DB snapshot.
 ```
 
 ### POST `/predict`
+
 Accepts batch of question-feature rows per student.
+
 ```json
 {
   "modelId": "rf-20251122-01",
@@ -332,6 +393,7 @@ Accepts batch of question-feature rows per student.
   ]
 }
 ```
+
 ```json
 {
   "predictions": [
@@ -347,6 +409,7 @@ Errors return validation details plus `traceId` for observability.
 ---
 
 ## Notes
+
 - All endpoints secured via JWT except `/api/auth/**` and health checks.
 - Backend-to-AI requests include service token header `X-Service-Key`.
 - Rate limiting applied per student for practice sessions (max 5 concurrent).

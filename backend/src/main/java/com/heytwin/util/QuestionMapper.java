@@ -6,26 +6,14 @@ import com.heytwin.domain.entity.Question;
 import com.heytwin.dto.QuestionDto;
 import java.util.Collections;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class QuestionMapper {
-
     private final ObjectMapper objectMapper;
 
     public QuestionDto toDto(Question question) {
-        return QuestionDto.builder()
-                .questionId(question.getId().toString())
-                .topicId(question.getTopic().getId().toString())
-                .topicName(question.getTopic().getName())
-                .difficulty(question.getDifficulty())
-                .questionType(question.getQuestionType())
-                .prompt(question.getPrompt())
-                .options(readOptions(question.getOptionsJson()))
-                .estimatedTimeSec(question.getEstimatedTimeSec())
-                .build();
+        return QuestionDto.builder().questionId(question.getId().toString()).topicId(question.getTopic().getId().toString()).topicName(question.getTopic().getName()).difficulty(question.getDifficulty()).questionType(question.getQuestionType()).prompt(question.getPrompt()).options(readOptions(question.getOptionsJson())).estimatedTimeSec(question.getEstimatedTimeSec()).build();
     }
 
     private List<String> readOptions(String optionsJson) {
@@ -37,5 +25,11 @@ public class QuestionMapper {
         } catch (JsonProcessingException e) {
             return Collections.emptyList();
         }
+    }
+
+    @java.lang.SuppressWarnings("all")
+    
+    public QuestionMapper(final ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 }

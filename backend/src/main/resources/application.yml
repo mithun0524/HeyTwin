@@ -10,6 +10,8 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
+        type:
+          preferred_enum_type: postgres_enum
         format_sql: true
         show_sql: false
     open-in-view: false
@@ -36,3 +38,10 @@ logging:
   level:
     root: INFO
     com.heytwin: DEBUG
+
+ingestion:
+  opentdb:
+    base-url: ${OPENTDB_BASE_URL:https://opentdb.com}
+    default-amount: ${OPENTDB_DEFAULT_AMOUNT:50}
+    cron: ${OPENTDB_CRON:0 0 2 * * *}
+    enabled: ${OPENTDB_ENABLED:true}

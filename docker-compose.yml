@@ -44,13 +44,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/heytwin
       SPRING_DATASOURCE_USERNAME: heytwin
       SPRING_DATASOURCE_PASSWORD: heytwin
-      JWT_SECRET: dev-secret-change-me
+      JWT_SECRET: k6ZJ4xWl9c1X3V9zP0sN7qL5tH2wY8rQ
       JWT_EXPIRATION: "3600000"
       AI_SERVICE_URL: http://ai-service:8000
       AI_SERVICE_KEY: dev-api-key
       SERVER_PORT: "8080"
     ports:
-      - "8080:8080"
+      - "8081:8080"
     depends_on:
       db:
         condition: service_healthy

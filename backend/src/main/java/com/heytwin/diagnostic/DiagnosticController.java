@@ -7,7 +7,6 @@ import com.heytwin.domain.repository.UserRepository;
 import com.heytwin.dto.ApiResponse;
 import jakarta.validation.Valid;
 import java.security.Principal;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,9 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/diagnostic")
-@RequiredArgsConstructor
 public class DiagnosticController {
-
     private final DiagnosticService diagnosticService;
     private final UserRepository userRepository;
 
@@ -28,11 +25,7 @@ public class DiagnosticController {
     public ResponseEntity<ApiResponse<DiagnosticSessionPayload>> startDiagnostic(Principal principal) {
         User student = resolve(principal);
         DiagnosticSessionPayload payload = diagnosticService.startDiagnostic(student);
-        return ResponseEntity.ok(ApiResponse.<DiagnosticSessionPayload>builder()
-                .status(HttpStatus.OK.value())
-                .path("/api/diagnostic/questions")
-                .data(payload)
-                .build());
+        return ResponseEntity.ok(ApiResponse.<DiagnosticSessionPayload>builder().status(HttpStatus.OK.value()).path("/api/diagnostic/questions").data(payload).build());
     }
 
     @PostMapping("/responses")
@@ -42,7 +35,13 @@ public class DiagnosticController {
     }
 
     private User resolve(Principal principal) {
-        return userRepository.findByEmailIgnoreCase(principal.getName())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return userRepository.findByEmailIgnoreCase(principal.getName()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+
+    @java.lang.SuppressWarnings("all")
+    
+    public DiagnosticController(final DiagnosticService diagnosticService, final UserRepository userRepository) {
+        this.diagnosticService = diagnosticService;
+        this.userRepository = userRepository;
     }
 }

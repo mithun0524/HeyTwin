@@ -20,6 +20,12 @@ Key reference docs:
 - `docs/digital-twin-formulas.md`
 - `docs/containerization.md`
 
+## Recent enhancements (Nov 2025)
+
+- **OpenTDB ingestion pipeline** – brand-new `com.heytwin.ingestion` package with WebClient client, mapper, scheduler, and persistence service that deduplicates prompts per topic.
+- **Operational hooks** – cron-driven imports (default 02:00) plus an authenticated admin endpoint `POST /api/admin/questions/sync` for ad-hoc backfills with progress metrics.
+- **Docs, config, and tests** – README/API docs expanded with ingestion guidance, `application.yml` exposes `ingestion.opentdb.*`, and `QuestionIngestionServiceTest` keeps the flow covered by CI.
+
 ## Requirements
 
 - **Git** 2.40+ (used for cloning and keeping the repo up to date)
@@ -65,7 +71,7 @@ docker compose up -d
 ```
 
 - PostgreSQL 15 runs inside the `db` service and auto-applies `db/schema.sql` on first launch.
-- The backend is reachable at http://localhost:8080/api and proxies to the AI service at http://ai-service:8000.
+- The backend is reachable at http://localhost:8081/api (still listening on container port 8080) and proxies to the AI service at http://ai-service:8000.
 - The frontend static bundle is served by NGINX at http://localhost:5173 (mapped from port 80 inside the container).
 
 To stop and clean up:
@@ -101,8 +107,22 @@ Important environment variables (defaults live in `application.yml`):
 - `JWT_SECRET`, `JWT_EXPIRATION`
 - `AI_SERVICE_URL` (default `http://localhost:8000`)
 - `AI_SERVICE_KEY`
+- `INGESTION_OPENTDB_*` (base URL, batch size, cron, enable flag)
 
 > **Heads-up:** Maven is not installed in this workspace yet, so the backend build will fail until Maven 3.9+ is added to your path. Install it or add the Maven Wrapper before running the commands above.
+
+#### Question bank ingestion
+
+- Configure nightly imports via `ingestion.opentdb.*` properties (base URL, `default-amount`, `cron`, `enabled`).
+- Trigger a manual sync with `POST /api/admin/questions/sync?amount=50` (requires an admin JWT). The API responds with `{requested,fetched,inserted,skipped}` so you can monitor batch health.
+- Imports deduplicate questions per topic/prompt and auto-create topics based on the OpenTDB category (e.g., `Science: Mathematics → Mathematics`).
+
+Example manual sync:
+
+```bash
+curl -X POST "http://localhost:8080/api/admin/questions/sync?amount=75" \
+   -H "Authorization: Bearer <admin-jwt>"
+```
 
 ## 3. AI prediction microservice (FastAPI)
 
@@ -146,6 +166,8 @@ The dashboard visualizes mastery, learning curves, topic pies, achievements, rem
 | Frontend   | 5173          | `npm run dev`                   | Configure proxy or set `VITE_API_URL` (future) |
 | PostgreSQL | 5432          | `psql`                          | Apply `db/schema.sql`                          |
 
+> **Docker note:** When using `docker compose`, the backend container still listens on port 8080 internally but is mapped to host port **8081** to avoid conflicts with macOS's built-in Apache server.
+
 ## Roadmap & next steps
 
 - Install Maven or commit the Maven Wrapper so CI/backends can build without manual setup.
@@ -155,5 +177,3 @@ The dashboard visualizes mastery, learning curves, topic pies, achievements, rem
 - Add CI (e.g., GitHub Actions) that runs `mvn verify`, `pytest`, and `npm run build` on every pull request using Java 21.
 - Track frontend bundle size by enabling Vite's analyzer or splitting large routes with `React.lazy`/dynamic imports.
 - Script environment bring-up with `make` or `taskfile` targets (`db-up`, `api-dev`, `ai-dev`, `web-dev`) to reduce manual steps.
-
-Let me know when you want to tackle deployments, CI/CD, or containerization.

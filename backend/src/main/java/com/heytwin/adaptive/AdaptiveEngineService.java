@@ -32,14 +32,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class AdaptiveEngineService {
-
     private final QuestionRepository questionRepository;
     private final PracticeSessionRepository practiceSessionRepository;
     private final ResponseRepository responseRepository;
@@ -52,57 +49,28 @@ public class AdaptiveEngineService {
     @Transactional
     public PracticeSessionStartResponse startSession(User student, PracticeSessionStartRequest request) {
         List<Question> candidates = pickCandidates(request);
-        Map<UUID, StudentTopicProfile> profileMap = profileRepository.findByStudent(student).stream()
-                .collect(Collectors.toMap(profile -> profile.getTopic().getId(), profile -> profile));
-
+        Map<UUID, StudentTopicProfile> profileMap = profileRepository.findByStudent(student).stream().collect(Collectors.toMap(profile -> profile.getTopic().getId(), profile -> profile));
         AiPredictionRequest aiRequest = buildAiRequest(student, candidates, profileMap);
         AiPredictionResponse predictionResponse = aiServiceClient.predict(aiRequest);
-        Map<String, Double> probMap = predictionResponse.getPredictions().stream()
-                .collect(Collectors.toMap(AiPredictionResponse.Item::getQuestionId, AiPredictionResponse.Item::getProb));
-
+        Map<String, Double> probMap = predictionResponse.getPredictions().stream().collect(Collectors.toMap(AiPredictionResponse.Item::getQuestionId, AiPredictionResponse.Item::getProb));
         List<Question> ordered = balanceSelection(candidates, probMap, request.getCount());
-        PracticeSession session = practiceSessionRepository.save(PracticeSession.builder()
-                .student(student)
-                .sessionType(Optional.ofNullable(request.getSessionType()).orElse(SessionType.PRACTICE))
-                .selectionStrategy(Optional.ofNullable(request.getStrategy()).orElse(SessionStrategy.BALANCED))
-                .questionCount(ordered.size())
-                .aiModelId(predictionResponse.getModelId())
-                .metadata(writeMetadata(ordered, probMap))
-                .build());
-
+        PracticeSession session = practiceSessionRepository.save(PracticeSession.builder().student(student).sessionType(Optional.ofNullable(request.getSessionType()).orElse(SessionType.PRACTICE)).selectionStrategy(Optional.ofNullable(request.getStrategy()).orElse(SessionStrategy.BALANCED)).questionCount(ordered.size()).aiModelId(predictionResponse.getModelId()).metadata(writeMetadata(ordered, probMap)).build());
         List<QuestionDto> questionDtos = ordered.stream().map(questionMapper::toDto).toList();
         Map<String, Integer> rationale = computeRationale(probMap, ordered);
-
-        return PracticeSessionStartResponse.builder()
-                .sessionId(session.getId().toString())
-                .questions(questionDtos)
-                .selectionRationale(rationale)
-                .build();
+        return PracticeSessionStartResponse.builder().sessionId(session.getId().toString()).questions(questionDtos).selectionRationale(rationale).build();
     }
 
     @Transactional
     public void recordResponse(User student, UUID sessionId, PracticeResponseRequest request) {
-        PracticeSession session = practiceSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("Session not found"));
-        Question question = questionRepository.findById(request.getQuestionId())
-                .orElseThrow(() -> new IllegalArgumentException("Question not found"));
-
-        Response response = Response.builder()
-                .session(session)
-                .student(student)
-                .question(question)
-                .selectedOption(request.getSelectedOption())
-                .correct(evaluate(question, request.getSelectedOption()))
-                .timeTakenSec(request.getTimeTakenSec())
-                .aiPredictedProbability(extractProb(session, question))
-                .build();
+        PracticeSession session = practiceSessionRepository.findById(sessionId).orElseThrow(() -> new IllegalArgumentException("Session not found"));
+        Question question = questionRepository.findById(request.getQuestionId()).orElseThrow(() -> new IllegalArgumentException("Question not found"));
+        Response response = Response.builder().session(session).student(student).question(question).selectedOption(request.getSelectedOption()).correct(evaluate(question, request.getSelectedOption())).timeTakenSec(request.getTimeTakenSec()).aiPredictedProbability(extractProb(session, question)).build();
         responseRepository.save(response);
     }
 
     @Transactional
     public void completeSession(User student, UUID sessionId) {
-        PracticeSession session = practiceSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("Session not found"));
+        PracticeSession session = practiceSessionRepository.findById(sessionId).orElseThrow(() -> new IllegalArgumentException("Session not found"));
         List<Response> responses = responseRepository.findBySession(session);
         digitalTwinService.updateTwinFromResponses(student, responses);
         session.setStatus("COMPLETED");
@@ -111,50 +79,21 @@ public class AdaptiveEngineService {
     }
 
     private List<Question> pickCandidates(PracticeSessionStartRequest request) {
-        List<Question> pool = questionRepository.findAll().stream()
-                .filter(Question::getActive)
-                .collect(Collectors.toCollection(ArrayList::new));
+        List<Question> pool = questionRepository.findAll().stream().filter(Question::getActive).collect(Collectors.toCollection(ArrayList::new));
         Collections.shuffle(pool);
-
         if (request.getTargetDifficulty() != null && !request.getTargetDifficulty().isEmpty()) {
-            pool = pool.stream()
-                    .filter(q -> request.getTargetDifficulty().contains(q.getDifficulty().name()))
-                    .collect(Collectors.toCollection(ArrayList::new));
+            pool = pool.stream().filter(q -> request.getTargetDifficulty().contains(q.getDifficulty().name())).collect(Collectors.toCollection(ArrayList::new));
         }
-
         return pool.stream().limit(Math.max(request.getCount() * 2, 20)).toList();
     }
 
     private AiPredictionRequest buildAiRequest(User student, List<Question> questions, Map<UUID, StudentTopicProfile> profiles) {
-        List<AiPredictionRequest.Instance> instances = questions.stream()
-                .map(question -> {
-                    StudentTopicProfile profile = profiles.getOrDefault(question.getTopic().getId(),
-                            StudentTopicProfile.builder()
-                                    .accuracy(0.6)
-                                    .averageTimeSec(45.0)
-                                    .difficultyScore(0.5)
-                                    .consistencyScore(0.5)
-                                    .forgettingScore(0.5)
-                                    .masteryLevel(0.5)
-                                    .build());
-                    Map<String, Object> features = Map.of(
-                            "topicMastery", profile.getMasteryLevel(),
-                            "recentAccuracy", profile.getAccuracy(),
-                            "avgTimeSec", profile.getAverageTimeSec(),
-                            "difficulty", question.getDifficulty().ordinal() + 1,
-                            "questionType", question.getQuestionType().name()
-                    );
-                    return AiPredictionRequest.Instance.builder()
-                            .studentId(student.getId().toString())
-                            .questionId(question.getId().toString())
-                            .features(features)
-                            .build();
-                })
-                .toList();
-        return AiPredictionRequest.builder()
-                .modelId("rf-latest")
-                .instances(instances)
-                .build();
+        List<AiPredictionRequest.Instance> instances = questions.stream().map(question -> {
+            StudentTopicProfile profile = profiles.getOrDefault(question.getTopic().getId(), StudentTopicProfile.builder().accuracy(0.6).averageTimeSec(45.0).difficultyScore(0.5).consistencyScore(0.5).forgettingScore(0.5).masteryLevel(0.5).build());
+            Map<String, Object> features = Map.of("topicMastery", profile.getMasteryLevel(), "recentAccuracy", profile.getAccuracy(), "avgTimeSec", profile.getAverageTimeSec(), "difficulty", question.getDifficulty().ordinal() + 1, "questionType", question.getQuestionType().name());
+            return AiPredictionRequest.Instance.builder().studentId(student.getId().toString()).questionId(question.getId().toString()).features(features).build();
+        }).toList();
+        return AiPredictionRequest.builder().modelId("rf-latest").instances(instances).build();
     }
 
     private List<Question> balanceSelection(List<Question> candidates, Map<String, Double> probMap, int targetCount) {
@@ -175,16 +114,13 @@ public class AdaptiveEngineService {
         high.sort(comparator);
         medium.sort(comparator);
         low.sort(comparator);
-
         int lowCount = Math.max(2, targetCount / 3);
         int highCount = Math.max(2, targetCount / 3);
         int mediumCount = targetCount - lowCount - highCount;
-
         List<Question> result = new ArrayList<>();
         result.addAll(low.subList(0, Math.min(lowCount, low.size())));
         result.addAll(medium.subList(0, Math.min(mediumCount, medium.size())));
         result.addAll(high.subList(0, Math.min(highCount, high.size())));
-
         while (result.size() < targetCount) {
             for (Question question : candidates) {
                 if (!result.contains(question)) {
@@ -239,5 +175,18 @@ public class AdaptiveEngineService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    @java.lang.SuppressWarnings("all")
+    
+    public AdaptiveEngineService(final QuestionRepository questionRepository, final PracticeSessionRepository practiceSessionRepository, final ResponseRepository responseRepository, final StudentTopicProfileRepository profileRepository, final AiServiceClient aiServiceClient, final QuestionMapper questionMapper, final ObjectMapper objectMapper, final DigitalTwinService digitalTwinService) {
+        this.questionRepository = questionRepository;
+        this.practiceSessionRepository = practiceSessionRepository;
+        this.responseRepository = responseRepository;
+        this.profileRepository = profileRepository;
+        this.aiServiceClient = aiServiceClient;
+        this.questionMapper = questionMapper;
+        this.objectMapper = objectMapper;
+        this.digitalTwinService = digitalTwinService;
     }
 }

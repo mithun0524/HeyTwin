@@ -5,7 +5,6 @@ import com.heytwin.domain.repository.UserRepository;
 import com.heytwin.dto.ApiResponse;
 import java.security.Principal;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,9 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/analytics")
-@RequiredArgsConstructor
 public class AnalyticsController {
-
     private final AnalyticsService analyticsService;
     private final UserRepository userRepository;
 
@@ -50,15 +47,17 @@ public class AnalyticsController {
     }
 
     private ResponseEntity<ApiResponse<Map<String, Object>>> ok(String path, Map<String, Object> data) {
-        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                .status(200)
-                .path(path)
-                .data(data)
-                .build());
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder().status(200).path(path).data(data).build());
     }
 
     private User resolve(Principal principal) {
-        return userRepository.findByEmailIgnoreCase(principal.getName())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return userRepository.findByEmailIgnoreCase(principal.getName()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+
+    @java.lang.SuppressWarnings("all")
+    
+    public AnalyticsController(final AnalyticsService analyticsService, final UserRepository userRepository) {
+        this.analyticsService = analyticsService;
+        this.userRepository = userRepository;
     }
 }

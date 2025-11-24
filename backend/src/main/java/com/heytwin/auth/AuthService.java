@@ -10,16 +10,13 @@ import com.heytwin.domain.model.enums.RoleType;
 import com.heytwin.domain.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -27,35 +24,24 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        userRepository.findByEmailIgnoreCase(request.getEmail())
-                .ifPresent(user -> { throw new IllegalArgumentException("Email already registered"); });
-
-        User user = User.builder()
-                .fullName(request.getFullName())
-                .email(request.getEmail())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .gradeLevel(request.getGradeLevel())
-                .role(RoleType.STUDENT)
-                .build();
+        userRepository.findByEmailIgnoreCase(request.getEmail()).ifPresent(user -> {
+            throw new IllegalArgumentException("Email already registered");
+        });
+        User user = User.builder().fullName(request.getFullName()).email(request.getEmail()).passwordHash(passwordEncoder.encode(request.getPassword())).gradeLevel(request.getGradeLevel()).role(RoleType.STUDENT).build();
         userRepository.save(user);
-
         return generateAuthResponse(UserPrincipal.of(user));
     }
 
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
-        User user = userRepository.findByEmailIgnoreCase(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        User user = userRepository.findByEmailIgnoreCase(request.getEmail()).orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
         return generateAuthResponse(UserPrincipal.of(user));
     }
 
     public AuthResponse refresh(RefreshTokenRequest request) {
         // For simplicity, reuse same JWT expiration; extend later.
         String username = jwtService.extractUsername(request.getRefreshToken());
-        User user = userRepository.findByEmailIgnoreCase(username)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
+        User user = userRepository.findByEmailIgnoreCase(username).orElseThrow(() -> new IllegalArgumentException("Invalid token"));
         return generateAuthResponse(UserPrincipal.of(user));
     }
 
@@ -63,18 +49,15 @@ public class AuthService {
         String access = jwtService.generateToken(principal, Map.of("type", "access"));
         String refresh = jwtService.generateToken(principal, Map.of("type", "refresh"));
         long expiresIn = 3600L;
-        return AuthResponse.builder()
-                .accessToken(access)
-                .refreshToken(refresh)
-                .expiresIn(expiresIn)
-                .user(AuthResponse.UserSummary.builder()
-                        .id(principal.getId().toString())
-                        .fullName(principal.getFullName())
-                        .role(principal.getAuthorities().stream()
-                                .findFirst()
-                                .map(grantedAuthority -> grantedAuthority.getAuthority().replace("ROLE_", ""))
-                                .orElse("STUDENT"))
-                        .build())
-                .build();
+        return AuthResponse.builder().accessToken(access).refreshToken(refresh).expiresIn(expiresIn).user(AuthResponse.UserSummary.builder().id(principal.getId().toString()).fullName(principal.getFullName()).role(principal.getAuthorities().stream().findFirst().map(grantedAuthority -> grantedAuthority.getAuthority().replace("ROLE_", "")).orElse("STUDENT")).build()).build();
+    }
+
+    @java.lang.SuppressWarnings("all")
+    
+    public AuthService(final UserRepository userRepository, final PasswordEncoder passwordEncoder, final JwtService jwtService, final AuthenticationManager authenticationManager) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.authenticationManager = authenticationManager;
     }
 }

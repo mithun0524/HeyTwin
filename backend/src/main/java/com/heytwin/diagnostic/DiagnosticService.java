@@ -23,16 +23,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class DiagnosticService {
-
     private static final int QUESTION_COUNT = 15;
-
     private final QuestionRepository questionRepository;
     private final PracticeSessionRepository practiceSessionRepository;
     private final ResponseRepository responseRepository;
@@ -45,42 +41,18 @@ public class DiagnosticService {
         List<Question> pool = questionRepository.findAll();
         Collections.shuffle(pool);
         List<Question> selected = pool.stream().limit(QUESTION_COUNT).toList();
-
-        PracticeSession session = practiceSessionRepository.save(PracticeSession.builder()
-                .student(student)
-                .sessionType(SessionType.DIAGNOSTIC)
-                .selectionStrategy(SessionStrategy.BALANCED)
-                .questionCount(selected.size())
-                .metadata(writeMetadata(selected))
-                .build());
-
-        List<QuestionDto> questionDtos = selected.stream()
-                .map(questionMapper::toDto)
-                .toList();
-
-        return DiagnosticSessionPayload.builder()
-                .sessionId(session.getId().toString())
-                .questions(questionDtos)
-                .build();
+        PracticeSession session = practiceSessionRepository.save(PracticeSession.builder().student(student).sessionType(SessionType.DIAGNOSTIC).selectionStrategy(SessionStrategy.BALANCED).questionCount(selected.size()).metadata(writeMetadata(selected)).build());
+        List<QuestionDto> questionDtos = selected.stream().map(questionMapper::toDto).toList();
+        return DiagnosticSessionPayload.builder().sessionId(session.getId().toString()).questions(questionDtos).build();
     }
 
     @Transactional
     public void submitResponses(User student, DiagnosticResponseRequest request) {
-        PracticeSession session = practiceSessionRepository.findById(UUID.fromString(request.getSessionId()))
-                .orElseThrow(() -> new IllegalArgumentException("Session not found"));
-
-        Map<UUID, Question> questionLookup = extractQuestionIds(session).stream()
-                .map(questionRepository::findById)
-                .flatMap(Optional::stream)
-                .collect(Collectors.toMap(Question::getId, q -> q));
-
-        List<Response> responses = request.getResponses().stream()
-                .map(item -> buildResponse(student, session, questionLookup.get(item.getQuestionId()), item))
-                .toList();
-
+        PracticeSession session = practiceSessionRepository.findById(UUID.fromString(request.getSessionId())).orElseThrow(() -> new IllegalArgumentException("Session not found"));
+        Map<UUID, Question> questionLookup = extractQuestionIds(session).stream().map(questionRepository::findById).flatMap(Optional::stream).collect(Collectors.toMap(Question::getId, q -> q));
+        List<Response> responses = request.getResponses().stream().map(item -> buildResponse(student, session, questionLookup.get(item.getQuestionId()), item)).toList();
         responseRepository.saveAll(responses);
         digitalTwinService.updateTwinFromResponses(student, responses);
-
         session.setStatus("COMPLETED");
         session.setCompletedAt(java.time.OffsetDateTime.now());
         practiceSessionRepository.save(session);
@@ -88,15 +60,7 @@ public class DiagnosticService {
 
     private Response buildResponse(User student, PracticeSession session, Question question, DiagnosticResponseRequest.Item item) {
         boolean isCorrect = evaluate(question, item.getSelectedOption());
-        return Response.builder()
-                .session(session)
-                .student(student)
-                .question(question)
-                .selectedOption(item.getSelectedOption())
-                .correct(isCorrect)
-                .timeTakenSec(item.getTimeTakenSec())
-                .aiPredictedProbability(0.0)
-                .build();
+        return Response.builder().session(session).student(student).question(question).selectedOption(item.getSelectedOption()).correct(isCorrect).timeTakenSec(item.getTimeTakenSec()).aiPredictedProbability(0.0).build();
     }
 
     private boolean evaluate(Question question, String selectedOption) {
@@ -131,5 +95,16 @@ public class DiagnosticService {
         } catch (Exception e) {
             return List.of();
         }
+    }
+
+    @java.lang.SuppressWarnings("all")
+    
+    public DiagnosticService(final QuestionRepository questionRepository, final PracticeSessionRepository practiceSessionRepository, final ResponseRepository responseRepository, final QuestionMapper questionMapper, final ObjectMapper objectMapper, final DigitalTwinService digitalTwinService) {
+        this.questionRepository = questionRepository;
+        this.practiceSessionRepository = practiceSessionRepository;
+        this.responseRepository = responseRepository;
+        this.questionMapper = questionMapper;
+        this.objectMapper = objectMapper;
+        this.digitalTwinService = digitalTwinService;
     }
 }
